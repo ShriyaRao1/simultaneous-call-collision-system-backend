@@ -11,12 +11,12 @@ const authRoutes = require("./routes/authRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 
 // FIREBASE
-const admin = require("firebase-admin");
-const serviceAccount = require("./firebase-admin.json");
+// const admin = require("firebase-admin");
+// const serviceAccount = require("./firebase-admin.json");
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+//admin.initializeApp({
+  //credential: admin.credential.cert(serviceAccount),
+//});
 
 const app = express();
 
@@ -46,19 +46,19 @@ const io = new Server(server, {
 const onlineUsers = {};
 
 // PUSH
-const sendPushNotification = async (token, from) => {
-  try {
-    await admin.messaging().send({
-      token,
-      notification: {
-        title: "Incoming Call 📞",
-        body: `Call from ${from}`,
-      },
-    });
-  } catch (err) {
-    console.log("Push error:", err);
-  }
-};
+//const sendPushNotification = async (token, from) => {
+  //try {
+    //await admin.messaging().send({
+      //token,
+      //notification: {
+        //title: "Incoming Call 📞",
+        //body: `Call from ${from}`,
+      //},
+    //});
+  //} catch (err) {
+    //console.log("Push error:", err);
+  //}
+//};
 
 // SAVE TOKEN
 app.post("/save-token", async (req, res) => {
@@ -99,7 +99,7 @@ io.on("connection", (socket) => {
         );
 
         if (user.rows[0]?.fcm_token) {
-          await sendPushNotification(user.rows[0].fcm_token, from);
+         // await sendPushNotification(user.rows[0].fcm_token, from);
         }
       } catch (err) {
         console.log(err);
