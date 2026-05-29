@@ -7,43 +7,72 @@ require("dotenv").config();
 const app = express();
 const server = http.createServer(app);
 
-// ✅ CORS
+// ✅ CORS (fixed properly)
 const allowedOrigins = [
   "http://localhost:3000",
   "https://janitor-january-operative.ngrok-free.dev"
 ];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST"],
   credentials: true
 }));
 
 app.use(express.json());
 
-// ✅ Routes
+// ✅ DB IMPORT
+const pool = require("./db");
+
+// ✅ ROUTES
 const authRoutes = require("./routes/authRoutes");
 const contactRoutes = require("./routes/contactRoutes");
 
 app.use("/api/auth", authRoutes);
 app.use("/contacts", contactRoutes);
 
-// ✅ Test route
+// ✅ TEST ROUTE
 app.get("/test", (req, res) => {
   res.send("Backend is working 🚀");
 });
 
-// ✅ Socket
+// ✅ DB TEST ROUTE (YOU WERE MISSING THIS)
+app.get("/db-test", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({
+      message: "DB connected ✅",
+      time: result.rows[0],
+    });
+  } catch (err) {
+    console.error("DB ERROR:", err);
+    res.status(500).json({
+      message: "DB failed ❌",
+      error: err.message,
+    });
+  }
+});
+
+// ✅ SOCKET.IO
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
   }
 });
 
 let onlineUsers = {};
 
 io.on("connection", (socket) => {
+  console.log("User connected:", socket.id);
+
   socket.on("join", ({ phone }) => {
     onlineUsers[phone] = socket.id;
     io.emit("onlineUsers", Object.keys(onlineUsers));
@@ -52,7 +81,9 @@ io.on("connection", (socket) => {
   socket.on("callUser", ({ from, to, offer, type }) => {
     if (onlineUsers[to]) {
       io.to(onlineUsers[to]).emit("incomingCall", {
-        from, offer, type
+        from,
+        offer,
+        type
       });
     }
   });
@@ -75,6 +106,12 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("rejectCall", ({ to }) => {
+    if (onlineUsers[to]) {
+      io.to(onlineUsers[to]).emit("callRejected");
+    }
+  });
+
   socket.on("disconnect", () => {
     for (let user in onlineUsers) {
       if (onlineUsers[user] === socket.id) {
@@ -82,9 +119,11 @@ io.on("connection", (socket) => {
       }
     }
     io.emit("onlineUsers", Object.keys(onlineUsers));
+    console.log("User disconnected:", socket.id);
   });
 });
 
+// ✅ PORT
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
