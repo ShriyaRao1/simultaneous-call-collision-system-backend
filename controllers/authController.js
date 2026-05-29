@@ -1,4 +1,4 @@
-const pool = require("../config/db");
+const pool = require("../db"); // ✅ FIXED PATH
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
@@ -15,6 +15,7 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // ✅ CHECK EXISTING USER
     const userExists = await pool.query(
       "SELECT * FROM users WHERE phone=$1",
       [phone]
@@ -26,8 +27,10 @@ const registerUser = async (req, res) => {
       });
     }
 
+    // ✅ HASH PASSWORD
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // ✅ INSERT USER
     const newUser = await pool.query(
       "INSERT INTO users(name, phone, password) VALUES($1,$2,$3) RETURNING id, name, phone",
       [name, phone, hashedPassword]
@@ -42,7 +45,7 @@ const registerUser = async (req, res) => {
     console.error("REGISTER ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Server error",
     });
   }
 };
@@ -60,6 +63,7 @@ const loginUser = async (req, res) => {
       });
     }
 
+    // ✅ FIND USER
     const user = await pool.query(
       "SELECT * FROM users WHERE phone=$1",
       [phone]
@@ -67,10 +71,11 @@ const loginUser = async (req, res) => {
 
     if (user.rows.length === 0) {
       return res.status(400).json({
-        message: "Invalid Credentials",
+        message: "Invalid credentials",
       });
     }
 
+    // ✅ CHECK PASSWORD
     const validPassword = await bcrypt.compare(
       password,
       user.rows[0].password
@@ -78,16 +83,14 @@ const loginUser = async (req, res) => {
 
     if (!validPassword) {
       return res.status(400).json({
-        message: "Invalid Credentials",
+        message: "Invalid credentials",
       });
     }
 
-    // 🔥 FIX: fallback secret (prevents crash)
-    const secret = process.env.JWT_SECRET || "secret123";
-
+    // ✅ JWT TOKEN
     const token = jwt.sign(
       { phone: user.rows[0].phone },
-      secret,
+      process.env.JWT_SECRET || "secret123",
       { expiresIn: "7d" }
     );
 
@@ -105,7 +108,7 @@ const loginUser = async (req, res) => {
     console.error("LOGIN ERROR:", error);
 
     res.status(500).json({
-      message: error.message,
+      message: error.message || "Server error",
     });
   }
 };

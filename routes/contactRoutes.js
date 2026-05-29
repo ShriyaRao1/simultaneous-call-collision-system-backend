@@ -6,7 +6,24 @@ const {
   getContacts
 } = require("../controllers/contactController");
 
-router.post("/add", addContacts);
-router.get("/", getContacts);
+// ✅ ADD CONTACT
+router.post("/add", async (req, res) => {
+  try {
+    await addContacts(req, res);
+  } catch (err) {
+    console.error("Add Contact Error:", err);
+    res.status(500).json({ error: "Server error while adding contact" });
+  }
+});
+
+// ✅ GET CONTACTS
+router.get("/", async (req, res) => {
+  try {
+    await getContacts(req, res);
+  } catch (err) {
+    console.error("Get Contacts Error:", err);
+    res.status(500).json({ error: "Server error while fetching contacts" });
+  }
+});
 
 module.exports = router;

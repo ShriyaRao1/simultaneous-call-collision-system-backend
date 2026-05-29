@@ -6,16 +6,16 @@ const {
   loginUser,
 } = require("../controllers/authController");
 
-// ✅ REGISTER (with name + phone + password)
+// ✅ REGISTER
 router.post("/register", registerUser);
 
-// ✅ LOGIN (using phone + password)
+// ✅ LOGIN
 router.post("/login", loginUser);
 
-// ✅ OPTIONAL: GET CURRENT USER (useful later)
+// ✅ TEST ROUTE
 router.get("/me", (req, res) => {
   res.json({
-    message: "User route working",
+    message: "Auth route working ✅",
   });
 });
 
