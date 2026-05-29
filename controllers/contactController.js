@@ -1,4 +1,4 @@
-const pool = require("../db"); // ✅ FIXED
+const pool = require("../db");
 
 // ✅ ADD CONTACT
 const addContacts = async (req, res) => {
@@ -11,7 +11,7 @@ const addContacts = async (req, res) => {
       });
     }
 
-    // ✅ GET USER ID FROM PHONE
+    // ✅ GET USER ID
     const userResult = await pool.query(
       "SELECT id FROM users WHERE phone=$1",
       [user_phone]
@@ -25,9 +25,9 @@ const addContacts = async (req, res) => {
 
     const user_id = userResult.rows[0].id;
 
-    // ✅ INSERT CONTACT
+    // ✅ INSERT (avoid duplicate crash)
     await pool.query(
-      "INSERT INTO contacts(user_id, contact_phone) VALUES($1,$2)",
+      "INSERT INTO contacts(user_id, contact_phone) VALUES($1,$2) ON CONFLICT DO NOTHING",
       [user_id, contact_phone]
     );
 
@@ -35,13 +35,6 @@ const addContacts = async (req, res) => {
 
   } catch (error) {
     console.error("ADD CONTACT ERROR:", error);
-
-    // ✅ HANDLE DUPLICATE
-    if (error.code === "23505") {
-      return res.status(400).json({
-        message: "Contact already exists",
-      });
-    }
 
     res.status(500).json({
       message: error.message || "Server error",
@@ -74,9 +67,9 @@ const getContacts = async (req, res) => {
 
     const user_id = userResult.rows[0].id;
 
-    // ✅ GET CONTACTS
+    // ✅ IMPORTANT FIX HERE 👇
     const result = await pool.query(
-      `SELECT u.name, u.phone AS contact_phone
+      `SELECT u.id, u.name, u.phone
        FROM contacts c
        JOIN users u ON c.contact_phone = u.phone
        WHERE c.user_id = $1`,
