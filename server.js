@@ -7,9 +7,21 @@ require("dotenv").config();
 const app = express();
 const server = http.createServer(app);
 
-// ✅ CORS (VERY IMPORTANT)
+// ✅ FIXED CORS (allow BOTH localhost + vercel)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://call-h5djby2ts-chinmayi-h-k-s-projects.vercel.app"
+];
+
 app.use(cors({
-  origin: "https://call-h5djby2ts-chinmayi-h-k-s-projects.vercel.app",
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // allow Postman
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST"],
   credentials: true
 }));
@@ -28,11 +40,11 @@ app.get("/test", (req, res) => {
   res.send("Backend is working 🚀");
 });
 
-// ✅ Socket.IO setup
+// ✅ SOCKET.IO (FIXED CORS)
 const io = new Server(server, {
   cors: {
-    origin: "https://call-h5djby2ts-chinmayi-h-k-s-projects.vercel.app",
-    methods: ["GET", "POST"]
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
   }
 });
 
@@ -41,35 +53,68 @@ let onlineUsers = {};
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // ✅ Register user
-  socket.on("register", (userId) => {
-    onlineUsers[userId] = socket.id;
+  // ✅ JOIN (match frontend)
+  socket.on("join", ({ phone }) => {
+    onlineUsers[phone] = socket.id;
+    io.emit("onlineUsers", Object.keys(onlineUsers));
   });
 
-  // ✅ Call user
-  socket.on("callUser", ({ to, from, signal }) => {
+  // ✅ CALL USER
+  socket.on("callUser", ({ from, to, offer, type }) => {
     if (onlineUsers[to]) {
-      io.to(onlineUsers[to]).emit("incomingCall", { from, signal });
+      io.to(onlineUsers[to]).emit("incomingCall", {
+        from,
+        offer,
+        type
+      });
     }
   });
 
-  // ✅ Answer call
-  socket.on("answerCall", ({ to, signal }) => {
-    io.to(onlineUsers[to]).emit("callAccepted", signal);
+  // ✅ ACCEPT CALL
+  socket.on("acceptCall", ({ from, to, answer }) => {
+    if (onlineUsers[from]) {
+      io.to(onlineUsers[from]).emit("callStarted", {
+        answer
+      });
+    }
   });
 
-  // ✅ Disconnect
+  // ✅ ICE CANDIDATE (VERY IMPORTANT)
+  socket.on("iceCandidate", ({ to, candidate }) => {
+    if (onlineUsers[to]) {
+      io.to(onlineUsers[to]).emit("iceCandidate", {
+        candidate
+      });
+    }
+  });
+
+  // ✅ END CALL
+  socket.on("endCall", ({ to }) => {
+    if (onlineUsers[to]) {
+      io.to(onlineUsers[to]).emit("callEnded");
+    }
+  });
+
+  // ✅ REJECT CALL
+  socket.on("rejectCall", ({ to }) => {
+    if (onlineUsers[to]) {
+      io.to(onlineUsers[to]).emit("callRejected");
+    }
+  });
+
+  // ✅ DISCONNECT
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    for (let userId in onlineUsers) {
-      if (onlineUsers[userId] === socket.id) {
-        delete onlineUsers[userId];
+    for (let user in onlineUsers) {
+      if (onlineUsers[user] === socket.id) {
+        delete onlineUsers[user];
       }
     }
+    io.emit("onlineUsers", Object.keys(onlineUsers));
+    console.log("User disconnected:", socket.id);
   });
 });
 
-// ✅ PORT (Render requirement)
+// ✅ PORT
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
