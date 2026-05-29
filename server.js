@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // ✅ FIXED CORS (allow BOTH localhost + vercel)
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://call-h5djby2ts-chinmayi-h-k-s-projects.vercel.app"
+  " https://janitor-january-operative.ngrok-free.dev "
 ];
 
 app.use(cors({
